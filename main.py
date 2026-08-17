@@ -6,24 +6,24 @@ import sys
 import time
 import sdl2
 
+WINDOW_WIDTH: int = 800
+WINDOW_HEIGHT: int = 600
+WINDOW_TITLE: str = "Pure SDL2 Keyboard Movement Example"
+SQUARE_SIZE: int = 50
+MAXIMUM_ALLOWED_DELTA_TIME_IN_SECONDS: float = 0.05
 
-def run_application() -> None:
-    """Initialize SDL2, create window and hardware renderer, and run main game loop."""
+def initialize_window() -> tuple[sdl2.SDL_Window, sdl2.SDL_Renderer]:
     if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO | sdl2.SDL_INIT_EVENTS) != 0:
         error_message: str = sdl2.SDL_GetError().decode("utf-8")
         print(f"Error initializing SDL: {error_message}", file=sys.stderr)
         sys.exit(1)
 
-    window_width: int = 800
-    window_height: int = 600
-    window_title_bytes: bytes = b"Pure SDL2 Keyboard Movement Example"
-
     window_pointer = sdl2.SDL_CreateWindow(
-        window_title_bytes,
+        WINDOW_TITLE.encode("utf-8"),
         sdl2.SDL_WINDOWPOS_CENTERED,
         sdl2.SDL_WINDOWPOS_CENTERED,
-        window_width,
-        window_height,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
         sdl2.SDL_WINDOW_SHOWN,
     )
     if not window_pointer:
@@ -47,13 +47,27 @@ def run_application() -> None:
         sdl2.SDL_Quit()
         sys.exit(1)
 
-    square_size: int = 50
-    horizontal_position: float = (window_width - square_size) / 2.0
-    vertical_position: float = (window_height - square_size) / 2.0
+    return (window_pointer, renderer_pointer)
+
+
+def destroy_window(
+    window_pointer: sdl2.SDL_Window, renderer_pointer: sdl2.SDL_Renderer
+) -> None:
+    sdl2.SDL_DestroyRenderer(renderer_pointer)
+    sdl2.SDL_DestroyWindow(window_pointer)
+    sdl2.SDL_Quit()
+    sys.exit(0)
+
+def run_application() -> None:
+    """Run main game loop."""
+
+    (window_pointer, renderer_pointer) = initialize_window()
+
+    horizontal_position: float = (WINDOW_WIDTH - SQUARE_SIZE) / 2.0
+    vertical_position: float = (WINDOW_HEIGHT - SQUARE_SIZE) / 2.0
     movement_speed_pixels_per_second: float = 350.0
 
     previous_time_in_seconds: float = time.perf_counter()
-    maximum_allowed_delta_time_in_seconds: float = 0.05
 
     is_running: bool = True
     event_instance: sdl2.SDL_Event = sdl2.SDL_Event()
@@ -65,8 +79,8 @@ def run_application() -> None:
         )
         previous_time_in_seconds = current_time_in_seconds
 
-        if delta_time_in_seconds > maximum_allowed_delta_time_in_seconds:
-            delta_time_in_seconds = maximum_allowed_delta_time_in_seconds
+        if delta_time_in_seconds > MAXIMUM_ALLOWED_DELTA_TIME_IN_SECONDS:
+            delta_time_in_seconds = MAXIMUM_ALLOWED_DELTA_TIME_IN_SECONDS
 
         while sdl2.SDL_PollEvent(ctypes.byref(event_instance)) != 0:
             if event_instance.type == sdl2.SDL_QUIT:
@@ -121,11 +135,11 @@ def run_application() -> None:
 
         horizontal_position = max(
             0.0,
-            min(horizontal_position, float(window_width - square_size)),
+            min(horizontal_position, float(WINDOW_WIDTH - SQUARE_SIZE)),
         )
         vertical_position = max(
             0.0,
-            min(vertical_position, float(window_height - square_size)),
+            min(vertical_position, float(WINDOW_HEIGHT - SQUARE_SIZE)),
         )
 
         # Clear screen with background color
@@ -137,18 +151,15 @@ def run_application() -> None:
         square_rectangle: sdl2.SDL_Rect = sdl2.SDL_Rect(
             int(round(horizontal_position)),
             int(round(vertical_position)),
-            square_size,
-            square_size,
+            SQUARE_SIZE,
+            SQUARE_SIZE,
         )
         sdl2.SDL_RenderFillRect(renderer_pointer, ctypes.byref(square_rectangle))
 
         # Present rendered frame
         sdl2.SDL_RenderPresent(renderer_pointer)
 
-    sdl2.SDL_DestroyRenderer(renderer_pointer)
-    sdl2.SDL_DestroyWindow(window_pointer)
-    sdl2.SDL_Quit()
-    sys.exit(0)
+    destroy_window(window_pointer, renderer_pointer)
 
 
 if __name__ == "__main__":
