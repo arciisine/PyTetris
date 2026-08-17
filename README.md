@@ -1,11 +1,11 @@
-# SDL Keyboard Movement Example
+# Pure SDL2 Keyboard Movement Example
 
-A sample Python project utilizing SDL (via Pygame) to render a movable square on the screen controlled via keyboard input (Arrow keys or WASD).
+A sample Python project using pure SDL2 bindings (`PySDL2`) without Pygame. Renders a hardware-accelerated movable square controlled via keyboard input (Arrow keys or WASD).
 
 ## Requirements
 
 - Python 3.10+
-- Pygame
+- PySDL2 & pysdl2-dll
 
 ## Setup
 
