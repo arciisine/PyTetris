@@ -39,7 +39,9 @@ PALETTE: dict[int, Color] = {
     7: (255,255,255,255)
 }
 
-SHAPES: dict[int, list[list[tuple[int, int] | tuple[int, int, int] | tuple[int, int, int, int]]]] = {
+type ShapeType = list[tuple[int] | tuple[int, int] | tuple[int, int, int] | tuple[int, int, int, int]]
+
+SHAPES: dict[int, list[ShapeType]] = {
     0: [
         [
             (1, 1), 
@@ -145,13 +147,13 @@ class WindowState(NamedTuple):
 
 class Piece(NamedTuple):
     color: int
-    shape: list[int]
+    shape: ShapeType
 
 class PieceState(NamedTuple):
     color: int
     row_start: int
     col_start: int
-    shape: list[list[int]]
+    shape: ShapeType
 
     def row_end(self):
         return self.row_start + len(self.shape) - 1
