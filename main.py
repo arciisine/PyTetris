@@ -5,7 +5,7 @@ import math
 import sys
 import time
 import sdl2
-from typing import NamedTuple
+from dataclasses import dataclass
 
 WINDOW_WIDTH: int = 500
 WINDOW_HEIGHT: int = 1000
@@ -141,19 +141,30 @@ SHAPES: dict[int, list[ShapeType]] = {
     ],    
 }
 
-class WindowState(NamedTuple):
+@dataclass
+class WindowState:
     window: sdl2.SDL_Window
     renderer: sdl2.SDL_Renderer
 
-class Piece(NamedTuple):
+class Piece:
     color: int
     shape: ShapeType
 
-class PieceState(NamedTuple):
+    def __init__(self, color: int, shape: ShapeType):
+        self.color = color
+        self.shape = shape
+
+class PieceState:
     color: int
     row_start: int
     col_start: int
     shape: ShapeType
+
+    def __init__(self, color:int, row_start:int, col_start:int, shape: ShapeType):
+        self.color = color
+        self.row_start = row_start
+        self.col_start = col_start
+        self.shape = shape
 
     def row_end(self):
         return self.row_start + len(self.shape) - 1
@@ -161,18 +172,20 @@ class PieceState(NamedTuple):
     def col_end(self):
         return self.col_start + len(self.shape[0]) - 1
 
-class InputEvent(NamedTuple):
+@dataclass
+class InputEvent:
     is_running: bool
     horizontal_movement: int
     vertical_movement: int
 
-class GameState(NamedTuple):
+@dataclass
+class GameState:
     board: list[list[int]]
-    piece: PieceState
+    upcoming_pieces: list[Piece]
+    piece: PieceState = PieceState(0, 0, 0, SHAPES[0][0])
     time: float = 0
     level: int = 0
     score: int = 0
-    upcomingPieces: list[Piece] = []
     is_running: bool = False
 
 
@@ -233,6 +246,8 @@ def process_input(
 ) -> InputEvent:
     """Process pending SDL events and keyboard inputs without blocking."""
     is_running: bool = True
+    horizontal_movement_direction: float = 0.0
+    vertical_movement_direction: float = 0.0
 
     while sdl2.SDL_PollEvent(ctypes.byref(event_instance)) != 0:
         if event_instance.type == sdl2.SDL_QUIT:
@@ -240,32 +255,16 @@ def process_input(
         elif event_instance.type == sdl2.SDL_KEYDOWN:
             if event_instance.key.keysym.sym == sdl2.SDLK_ESCAPE:
                 is_running = False
-
-    keyboard_state_pointer = sdl2.SDL_GetKeyboardState(None)
-
-    horizontal_movement_direction: float = 0.0
-    vertical_movement_direction: float = 0.0
-
-    if (
-        keyboard_state_pointer[sdl2.SDL_SCANCODE_LEFT]
-        or keyboard_state_pointer[sdl2.SDL_SCANCODE_A]
-    ):
-        horizontal_movement_direction -= 1.0
-    if (
-        keyboard_state_pointer[sdl2.SDL_SCANCODE_RIGHT]
-        or keyboard_state_pointer[sdl2.SDL_SCANCODE_D]
-    ):
-        horizontal_movement_direction += 1.0
-    if (
-        keyboard_state_pointer[sdl2.SDL_SCANCODE_UP]
-        or keyboard_state_pointer[sdl2.SDL_SCANCODE_W]
-    ):
-        vertical_movement_direction -= 1.0
-    if (
-        keyboard_state_pointer[sdl2.SDL_SCANCODE_DOWN]
-        or keyboard_state_pointer[sdl2.SDL_SCANCODE_S]
-    ):
-        vertical_movement_direction += 1.0
+            elif event_instance.key.repeat != 0:
+                continue
+            elif event_instance.key.keysym.sym == sdl2.SDLK_LEFT:
+                horizontal_movement_direction = -1.0
+            elif event_instance.key.keysym.sym == sdl2.SDLK_RIGHT:
+                horizontal_movement_direction = 1.0
+            elif event_instance.key.keysym.sym == sdl2.SDLK_UP:
+                vertical_movement_direction = -1.0
+            elif event_instance.key.keysym.sym == sdl2.SDLK_DOWN:
+                vertical_movement_direction = 1.0                
 
     if horizontal_movement_direction != 0.0 and vertical_movement_direction != 0.0:
         movement_vector_length: float = math.hypot(
@@ -276,8 +275,8 @@ def process_input(
 
     return InputEvent(
         is_running=is_running,
-        horizontal_movement=horizontal_movement_direction,
-        vertical_movement=vertical_movement_direction
+        horizontal_movement=int(horizontal_movement_direction),
+        vertical_movement=int(vertical_movement_direction)
     )
 
 
@@ -287,6 +286,9 @@ def update_game_state(
     delta_time_in_seconds: float,
 ) -> GameState:
     """Perform continuous background game updates combined with player movement."""
+    game.piece.col_start += event.horizontal_movement
+    game.piece.row_start += event.vertical_movement
+
     # # 1. Player-controlled movement
     # updated_horizontal_position: float = (
     #     horizontal_position
@@ -382,6 +384,7 @@ def run_application() -> None:
     )
     game = GameState(
         is_running=True,
+        upcoming_pieces=[],
         board=board,
         piece=piece
     )
@@ -403,7 +406,7 @@ def run_application() -> None:
         input_event  = process_input(event_instance)
 
         if not input_event.is_running:
-            game = game.__replace__(is_running=False)
+            game = game.is_running=False
 
         # Stage 2: Continuous autonomous game updates
         game = update_game_state(
