@@ -286,6 +286,11 @@ def update_game_state(
     delta_time_in_seconds: float,
 ) -> GameState:
     """Perform continuous background game updates combined with player movement."""
+
+    if not input.is_running:
+        game.is_running = False
+        return game
+
     game.piece.col_start += event.horizontal_movement
     if (event.vertical_movement >= 0):
         game.piece.row_start += event.vertical_movement
@@ -405,8 +410,6 @@ def run_application() -> None:
         # Stage 1: Non-blocking input processing
         input_event  = process_input(event_instance)
 
-        if not input_event.is_running:
-            game = game.is_running=False
 
         # Stage 2: Continuous autonomous game updates
         game = update_game_state(
