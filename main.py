@@ -290,8 +290,8 @@ def is_valid_position(
         return False
     if piece.row_end() >= TOTAL_ROWS:
         return False
-    for (row_idx, row_num) in enumerate(range(piece.row_start, piece.row_end())):
-        for (col_idx, col_num) in enumerate(range(piece.col_start, piece.col_end())):
+    for (row_idx, row_num) in enumerate(range(piece.row_start, piece.row_end()+1)):
+        for (col_idx, col_num) in enumerate(range(piece.col_start, piece.col_end()+1)):
             if piece.shape[row_idx][col_idx] != 0 and game.board[row_num][col_num] != 0:
                 return False
     return True
@@ -372,7 +372,7 @@ def render_frame(
     # Draw moving square
     for (row_num, row) in enumerate(game.board):
         for (col_num, col) in enumerate(row):
-            if row_num < HIDDEN_TOP_ROWS:
+            if row_num <= HIDDEN_TOP_ROWS:
                 continue
 
             vertical_position = GRID_CELL_SIZE * (row_num - HIDDEN_TOP_ROWS)
@@ -383,7 +383,9 @@ def render_frame(
                 and 
                 (col_num >= game.piece.col_start and col_num <= game.piece.col_end())
             ):
-                col = game.piece.shape[row_num - game.piece.row_start][col_num - game.piece.col_start]
+                has_block = game.piece.shape[row_num - game.piece.row_start][col_num - game.piece.col_start]
+                if has_block != 0:
+                    col = game.piece.color
 
             if col == 0:
                 continue
@@ -395,10 +397,10 @@ def render_frame(
             )
             
             square_rectangle: sdl2.SDL_Rect = sdl2.SDL_Rect(
-                horizontal_position,
-                vertical_position,
-                SQUARE_SIZE,
-                SQUARE_SIZE,
+                horizontal_position+1,
+                vertical_position+1,
+                SQUARE_SIZE-2,
+                SQUARE_SIZE-2,
             )
             sdl2.SDL_RenderFillRect(window.renderer, ctypes.byref(square_rectangle))
 
@@ -410,7 +412,7 @@ def run_application() -> None:
     """Run the continuous non-blocking main game loop."""
     window = initialize_window()
 
-    board = [[0] * VISIBLE_COLUMNS] * TOTAL_ROWS
+    board = [[0] * VISIBLE_COLUMNS for x in range(TOTAL_ROWS)]
     piece = PieceState(
         color=5,
         row_start=3,
@@ -423,6 +425,8 @@ def run_application() -> None:
         board=board,
         piece=piece
     )
+
+    game.board[10][3] = 5
 
     previous_time_in_seconds: float = time.perf_counter()
     event_instance: sdl2.SDL_Event = sdl2.SDL_Event()
