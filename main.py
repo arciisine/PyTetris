@@ -21,7 +21,8 @@ AUTOMATIC_FALL_SPEED_PIXELS_PER_SECOND: float = 80.0
 
 VISIBLE_ROWS = 20
 VISIBLE_COLUMNS = 10
-HIDDEN_ROWS = 2
+HIDDEN_TOP_ROWS = 2
+TOTAL_ROWS =VISIBLE_ROWS + HIDDEN_TOP_ROWS
 
 type Color = tuple[int, int, int, int]
 
@@ -279,6 +280,21 @@ def process_input(
         vertical_movement=int(vertical_movement_direction)
     )
 
+def is_valid_position(
+     piece: PieceState,
+     game: GameState
+) -> bool:
+    if piece.col_start < 0:
+       return False 
+    if piece.col_end() >= VISIBLE_COLUMNS:
+        return False
+    if piece.row_end() >= TOTAL_ROWS:
+        return False
+    for (row_idx, row_num) in enumerate(range(piece.row_start, piece.row_end())):
+        for (col_idx, col_num) in enumerate(range(piece.col_start, piece.col_end())):
+            if piece.shape[row_idx][col_idx] != 0 and game.board[row_num][col_num] != 0:
+                return False
+    return True
 
 def update_game_state(
     game: GameState,
@@ -287,13 +303,26 @@ def update_game_state(
 ) -> GameState:
     """Perform continuous background game updates combined with player movement."""
 
-    if not input.is_running:
+    if not event.is_running:
         game.is_running = False
         return game
+
+    og_col = game.piece.col_start
+    og_row = game.piece.row_start
 
     game.piece.col_start += event.horizontal_movement
     if (event.vertical_movement >= 0):
         game.piece.row_start += event.vertical_movement
+
+
+
+    # Do work here
+
+
+    if not is_valid_position(game.piece, game):
+        game.piece.col_start = og_col
+        game.piece.row_start = og_row
+
     # # 1. Player-controlled movement
     # updated_horizontal_position: float = (
     #     horizontal_position
@@ -343,10 +372,11 @@ def render_frame(
     # Draw moving square
     for (row_num, row) in enumerate(game.board):
         for (col_num, col) in enumerate(row):
-            vertical_position = GRID_CELL_SIZE * (row_num - HIDDEN_ROWS)
-            horizontal_position = GRID_CELL_SIZE * col_num
-            if vertical_position < 0:
+            if row_num < HIDDEN_TOP_ROWS:
                 continue
+
+            vertical_position = GRID_CELL_SIZE * (row_num - HIDDEN_TOP_ROWS)
+            horizontal_position = GRID_CELL_SIZE * col_num
 
             if (
                 (row_num >= game.piece.row_start and row_num <= game.piece.row_end())
@@ -380,7 +410,7 @@ def run_application() -> None:
     """Run the continuous non-blocking main game loop."""
     window = initialize_window()
 
-    board = [[0] * VISIBLE_COLUMNS] * (VISIBLE_ROWS + HIDDEN_ROWS)
+    board = [[0] * VISIBLE_COLUMNS] * TOTAL_ROWS
     piece = PieceState(
         color=5,
         row_start=3,
