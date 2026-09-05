@@ -40,9 +40,10 @@ PALETTE: dict[int, Color] = {
     7: (255,255,255,255)
 }
 
-type ShapeType = list[tuple[int] | tuple[int, int] | tuple[int, int, int] | tuple[int, int, int, int]]
+type ShapeTemplate = list[tuple[int] | tuple[int, int] | tuple[int, int, int] | tuple[int, int, int, int]]
+type ShapeList = list[ShapeTemplate]
 
-SHAPES: dict[int, list[ShapeType]] = {
+SHAPES: dict[int, ShapeList] = {
     0: [
         [
             (1, 1), 
@@ -149,9 +150,9 @@ class WindowState:
 
 class Piece:
     color: int
-    shape: ShapeType
+    shape_list: ShapeList
 
-    def __init__(self, color: int, shape: ShapeType):
+    def __init__(self, color: int, shape: ShapeList):
         self.color = color
         self.shape = shape
 
@@ -159,25 +160,37 @@ class PieceState:
     color: int
     row_start: int
     col_start: int
-    shape: ShapeType
+    shape_list: ShapeList
+    shape_index: int = 0
 
-    def __init__(self, color:int, row_start:int, col_start:int, shape: ShapeType):
+    def __init__(self, color:int, row_start:int, col_start:int, shape_list: ShapeList):
         self.color = color
         self.row_start = row_start
         self.col_start = col_start
-        self.shape = shape
+        self.shape_list = shape_list
+
+    def rotate(self, value: int):
+        self.shape_index += value
+        if self.shape_index < 0:
+            self.shape_index = len(self.shape_list) + self.shape_index
+        if self.shape_index >= len(self.shape_list):
+            self.shape_index = self.shape_index - len(self.shape_list)
+
+    def shape(self):
+        return self.shape_list[self.shape_index]
 
     def row_end(self):
-        return self.row_start + len(self.shape) - 1
+        return self.row_start + len(self.shape()) - 1
 
     def col_end(self):
-        return self.col_start + len(self.shape[0]) - 1
+        return self.col_start + len(self.shape()[0]) - 1
 
 @dataclass
 class InputEvent:
     is_running: bool
     horizontal_movement: int
     vertical_movement: int
+    rotate: int
 
 @dataclass
 class GameState:
@@ -249,6 +262,7 @@ def process_input(
     is_running: bool = True
     horizontal_movement_direction: float = 0.0
     vertical_movement_direction: float = 0.0
+    rotate = 0
 
     while sdl2.SDL_PollEvent(ctypes.byref(event_instance)) != 0:
         if event_instance.type == sdl2.SDL_QUIT:
@@ -266,6 +280,10 @@ def process_input(
                 vertical_movement_direction = -1.0
             elif event_instance.key.keysym.sym == sdl2.SDLK_DOWN:
                 vertical_movement_direction = 1.0                
+            elif event_instance.key.keysym.sym == sdl2.SDLK_SPACE:
+                rotate = 1
+            elif event_instance.key.keysym.sym == sdl2.SDLK_z:
+                rotate = -1
 
     if horizontal_movement_direction != 0.0 and vertical_movement_direction != 0.0:
         movement_vector_length: float = math.hypot(
@@ -277,7 +295,8 @@ def process_input(
     return InputEvent(
         is_running=is_running,
         horizontal_movement=int(horizontal_movement_direction),
-        vertical_movement=int(vertical_movement_direction)
+        vertical_movement=int(vertical_movement_direction),
+        rotate = rotate
     )
 
 def is_valid_position(
@@ -292,7 +311,7 @@ def is_valid_position(
         return False
     for (row_idx, row_num) in enumerate(range(piece.row_start, piece.row_end()+1)):
         for (col_idx, col_num) in enumerate(range(piece.col_start, piece.col_end()+1)):
-            if piece.shape[row_idx][col_idx] != 0 and game.board[row_num][col_num] != 0:
+            if piece.shape()[row_idx][col_idx] != 0 and game.board[row_num][col_num] != 0:
                 return False
     return True
 
@@ -309,19 +328,20 @@ def update_game_state(
 
     og_col = game.piece.col_start
     og_row = game.piece.row_start
+    og_shape_index = game.piece.shape_index
 
     game.piece.col_start += event.horizontal_movement
-    if (event.vertical_movement >= 0):
+    if event.vertical_movement >= 0:
         game.piece.row_start += event.vertical_movement
 
-
-
-    # Do work here
+    if event.rotate:
+        game.piece.rotate(event.rotate)
 
 
     if not is_valid_position(game.piece, game):
         game.piece.col_start = og_col
         game.piece.row_start = og_row
+        game.piece.shape_index = og_shape_index
 
     # # 1. Player-controlled movement
     # updated_horizontal_position: float = (
@@ -383,7 +403,7 @@ def render_frame(
                 and 
                 (col_num >= game.piece.col_start and col_num <= game.piece.col_end())
             ):
-                has_block = game.piece.shape[row_num - game.piece.row_start][col_num - game.piece.col_start]
+                has_block = game.piece.shape()[row_num - game.piece.row_start][col_num - game.piece.col_start]
                 if has_block != 0:
                     col = game.piece.color
 
@@ -417,7 +437,7 @@ def run_application() -> None:
         color=5,
         row_start=3,
         col_start=3,
-        shape=SHAPES[3][1]
+        shape_list=SHAPES[3]
     )
     game = GameState(
         is_running=True,
