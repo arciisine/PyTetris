@@ -287,8 +287,8 @@ def update_game_state(
 ) -> GameState:
     """Perform continuous background game updates combined with player movement."""
     game.piece.col_start += event.horizontal_movement
-    game.piece.row_start += event.vertical_movement
-
+    if (event.vertical_movement >= 0):
+        game.piece.row_start += event.vertical_movement
     # # 1. Player-controlled movement
     # updated_horizontal_position: float = (
     #     horizontal_position
